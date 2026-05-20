@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from app.config.settings import settings
 from app.websocket.audio_handler import handle_audio_stream
@@ -13,14 +13,27 @@ async def lifespan(app: FastAPI):
     yield
     print("shutting down HearMeOut...")
 
-app=FastAPI(title="HearMeOut", lifespan=lifespan, description="Real-time audio transcription service using OpenAI's Whisper model.", version="1.0.0")
+app = FastAPI(
+    title="HearMeOut",
+    lifespan=lifespan,
+    description="Real-time audio transcription service.",
+    version="1.0.0"
+)
 
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://localhost:3000"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+# allow_origins=["*"] + allow_credentials=False is the only combo
+# that stops Starlette from blocking WebSocket connections from
+# origins not in the list (like the Python test client's "http://localhost")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 async def root():
     return {"status": "ok", "service": "HearMe AI"}
-
 
 @app.get("/status")
 async def status():
@@ -33,5 +46,5 @@ async def status():
     }
 
 @app.websocket("/ws/audio")
-async def websocket_audio(websocket):
+async def websocket_audio(websocket: WebSocket):
     await handle_audio_stream(websocket)

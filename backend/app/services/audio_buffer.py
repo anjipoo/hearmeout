@@ -18,6 +18,7 @@ class AudioBuffer:
             return None
         
         has_speech=self._check_speech(frame)
+        self.window.append(frame)
         self.speech_flags.append(has_speech)
         self.frames_since_trans+=1
 
