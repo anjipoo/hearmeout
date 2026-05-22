@@ -1,5 +1,8 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 @dataclass
 class Settings:
     sample_rate: int = 16000
@@ -15,6 +18,12 @@ class Settings:
     compute_type: str = "int8"
     beam_size: int = 3
     language: str = "en"
+
+    diarization: bool = True
+    max_speakers: int = 2
+    min_speakers:int=1
+
+    hf_token:str=field(default_factory=lambda: os.getenv("HUGGINGFACE_TOKEN", ""))
 
     host:str = "0.0.0.0"
     port:int=8000
