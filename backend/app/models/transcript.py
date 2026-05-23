@@ -14,7 +14,11 @@ class TranscriptMessage(BaseModel):
     is_final: bool = True
     latency_ms: int
     session_id: str
-    speaker: int = 0          # ← new
+    speaker: int = 0
+    # ── Phase 7 fields ──────────────────────
+    is_question: bool = False
+    keywords: list[str] = []
+    action_items: list[str] = []
 
 
 class StatusMessage(BaseModel):

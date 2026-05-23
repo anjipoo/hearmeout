@@ -28,16 +28,19 @@ export default function App() {
 
   // Handle incoming WebSocket messages
   const handleMessage = useCallback((data) => {
-    if (data.type === 'transcript' && data.text) {
-      setCaptions(prev => [...prev, {
-        id: captionIdCounter++,
-        text: data.text,
-        timestamp: formatTime(new Date()),
-        latency_ms: data.latency_ms ?? 0,
-        speaker: 0,   // Phase 5 will populate this from diarization
-      }])
-    }
-  }, [])
+  if (data.type === 'transcript' && data.text) {
+    setCaptions(prev => [...prev, {
+      id: captionIdCounter++,
+      text: data.text,
+      timestamp: formatTime(new Date()),
+      latency_ms: data.latency_ms ?? 0,
+      speaker: data.speaker ?? 0,
+      is_question: data.is_question ?? false,
+      keywords: data.keywords ?? [],
+      action_items: data.action_items ?? [],
+    }])
+  }
+}, [])
 
   const { state: wsState, sessionId, connect, disconnect, sendAudio } = useWebSocket(handleMessage)
   const { isCapturing, error: micError, start: startMic, stop: stopMic } = useMicrophone(sendAudio)

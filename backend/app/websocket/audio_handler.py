@@ -5,6 +5,7 @@ from app.models.transcript import TranscriptMessage, StatusMessage, ErrorMessage
 from app.services.transcription import transcription_service
 from app.services.diarization import diarization_service
 from app.services.merger import assign_speakers
+from app.services.analyzer import text_analyzer
 
 
 async def handle_audio_stream(websocket: WebSocket):
@@ -36,14 +37,15 @@ async def handle_audio_stream(websocket: WebSocket):
             if not full_text:
                 continue
 
-            # Run diarization if enabled
+            # Speaker diarization
             speaker = 0
             if diarization_service.is_ready and transcript_segments:
                 speaker_segments = diarization_service.diarize(audio_window)
                 merged = assign_speakers(transcript_segments, speaker_segments)
-                # Use the speaker of the first segment as the dominant speaker
-                # Phase 6 will send per-segment results
                 speaker = merged[0]["speaker"] if merged else 0
+
+            # Text analysis — question, keywords, action items
+            analysis = text_analyzer.analyze(full_text)
 
             await connection_mgr.send_message(
                 session_id,
@@ -53,6 +55,9 @@ async def handle_audio_stream(websocket: WebSocket):
                     latency_ms=latency_ms,
                     session_id=session_id,
                     speaker=speaker,
+                    is_question=analysis.is_question,
+                    keywords=analysis.keywords,
+                    action_items=analysis.action_items,
                 ).model_dump_json()
             )
 

@@ -5,13 +5,15 @@ from app.config.settings import settings
 from app.websocket.audio_handler import handle_audio_stream
 from app.services.transcription import transcription_service
 from app.services.diarization import diarization_service
+from app.services.analyzer import text_analyzer
 from app.websocket.connection_mgr import connection_mgr
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     transcription_service.load_model()
-    diarization_service.load()          # ← new — loads pyannote
+    diarization_service.load()
+    text_analyzer.load()            # ← new
     print(f"HearMeOut ready at ws://localhost:{settings.port}/ws/audio")
     yield
     print("shutting down HearMeOut...")
@@ -45,6 +47,7 @@ async def status():
         "model": settings.model_size,
         "model_ready": transcription_service.is_ready,
         "diarization_ready": diarization_service.is_ready,
+        "nlp_ready": text_analyzer.is_ready,
         "active_sessions": connection_mgr.connection_count,
         "device": settings.device,
     }

@@ -23,29 +23,56 @@ class DiarizationService:
         self.is_ready=True
         print("diarization model loaded successfully.")
 
-    def diarize(self, audio:np.ndarray)->list[dict]:
+    def diarize(self, audio: np.ndarray) -> list[dict]:
         if not self.is_ready:
             return [{"start": 0.0, "end": len(audio) / settings.sample_rate, "speaker": 0}]
-        
-        waveform=torch.from_numpy(audio).float().unsqueeze(0)
-        input_dict={"waveform": waveform, "sample_rate": settings.sample_rate}
 
-        diarization:Annotation=self.pipeline(input_dict, min_speakers=settings.min_speakers, max_speakers=settings.max_speakers)
+        try:
+            waveform = torch.tensor(audio).unsqueeze(0)
 
-        settings_map={}
-        segments=[]
+            output = self.pipeline(
+                {"waveform": waveform, "sample_rate": settings.sample_rate},
+                min_speakers=settings.min_speakers,
+                max_speakers=settings.max_speakers,
+            )
 
-        for turn, _, speaker in diarization.itertracks(yield_label=True):
-            if speaker not in settings_map:
-                settings_map[speaker]=len(settings_map)
-            
-            segments.append({
-                "start": turn.start,
-                "end": turn.end,
-                "speaker": settings_map[speaker]
-            })
+            speaker_map = {}
+            segments = []
 
-        return segments if segments else [{"start": 0.0, "end": len(audio) / settings.sample_rate, "speaker": 0}]
-    
+            # DiarizeOutput has a .to_annotation() method that returns
+            # the old Annotation object with itertracks()
+            if hasattr(output, 'to_annotation'):
+                annotation = output.to_annotation()
+                for turn, _, label in annotation.itertracks(yield_label=True):
+                    if label not in speaker_map:
+                        speaker_map[label] = len(speaker_map)
+                    segments.append({
+                        "start": round(turn.start, 3),
+                        "end": round(turn.end, 3),
+                        "speaker": speaker_map[label],
+                    })
+
+            elif hasattr(output, 'itertracks'):
+                # Older pyannote — Annotation directly
+                for turn, _, label in output.itertracks(yield_label=True):
+                    if label not in speaker_map:
+                        speaker_map[label] = len(speaker_map)
+                    segments.append({
+                        "start": round(turn.start, 3),
+                        "end": round(turn.end, 3),
+                        "speaker": speaker_map[label],
+                    })
+
+            else:
+                # Last resort — print the type so we know what to handle
+                print(f"⚠️  Unknown diarization output type: {type(output)}, attrs: {dir(output)}")
+
+            return segments if segments else [
+                {"start": 0.0, "end": len(audio) / settings.sample_rate, "speaker": 0}
+            ]
+
+        except Exception as e:
+            print(f"⚠️  Diarization failed: {e}")
+            return [{"start": 0.0, "end": len(audio) / settings.sample_rate, "speaker": 0}]
 
 diarization_service=DiarizationService()
